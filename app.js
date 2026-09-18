@@ -9,12 +9,12 @@
   const DOMAINS = [
     { id: 'cosmetics',  label: 'קוסמטיקה',      emoji: '💄', stores: ['חנות קוסמטיקה', 'פרפומריה', 'בית מרקחת'] },
     { id: 'vitamins',   label: 'ויטמינים ותוספים', emoji: '💊', stores: ['בית מרקחת', 'חנות טבע'] },
-    { id: 'electrical', label: 'מוצרי חשמל',    emoji: '🔌', stores: ['חנות חשמל', 'מוצרי חשמל'] },
-    { id: 'lighting',   label: 'תאורה ונורות',  emoji: '💡', stores: ['חנות תאורה', 'חשמל', 'כלי בית'] },
+    { id: 'electrical', label: 'מוצרי חשמל',    emoji: '🔌', stores: ['חנות חשמל', 'מוצרי חשמל'], color: true },
+    { id: 'lighting',   label: 'תאורה ונורות',  emoji: '💡', stores: ['חנות תאורה', 'חשמל', 'כלי בית'], color: true },
     { id: 'food',       label: 'מזון ומזווה',   emoji: '🛒', stores: ['סופרמרקט', 'מכולת'] },
-    { id: 'baby',       label: 'תינוקות',       emoji: '🍼', stores: ['חנות תינוקות', 'בית מרקחת'] },
-    { id: 'pets',       label: 'חיות מחמד',     emoji: '🐾', stores: ['פט שופ', 'חנות חיות'] },
-    { id: 'home',       label: 'ניקיון ובית',   emoji: '🧽', stores: ['כלי בית', 'דראגסטור'] },
+    { id: 'baby',       label: 'תינוקות',       emoji: '🍼', stores: ['חנות תינוקות', 'בית מרקחת'], color: true },
+    { id: 'pets',       label: 'חיות מחמד',     emoji: '🐾', stores: ['פט שופ', 'חנות חיות'], color: true },
+    { id: 'home',       label: 'ניקיון ובית',   emoji: '🧽', stores: ['כלי בית', 'דראגסטור'], color: true },
   ];
   const domainById = (id) => DOMAINS.find((d) => d.id === id) || DOMAINS[0];
   const storeEmoji = (term) => {
@@ -194,7 +194,7 @@
     return products.filter((p) => {
       if (activeDomain !== 'all' && (p.domain || 'cosmetics') !== activeDomain) return false;
       if (!query) return true;
-      const hay = [p.name, p.brand, p.shade, p.shadeNumber, p.model, p.supplierNumber, p.store, p.notes]
+      const hay = [p.name, p.brand, p.color, p.shade, p.shadeNumber, p.model, p.supplierNumber, p.store, p.notes]
         .filter(Boolean).join(' ').toLowerCase();
       return hay.includes(query);
     });
@@ -279,7 +279,7 @@
 
     const body = document.createElement('div');
     body.className = 'card__body';
-    const sub = [p.brand, p.shade || p.shadeNumber].filter(Boolean).join(' · ');
+    const sub = [p.brand, p.color || p.shade || p.shadeNumber].filter(Boolean).join(' · ');
     body.innerHTML = `
       <div class="card__name">${esc(p.name || 'ללא שם')}</div>
       ${sub ? `<div class="card__sub">${esc(sub)}</div>` : ''}
@@ -315,6 +315,7 @@
 
     const rows = [
       ['מותג', p.brand],
+      ['צבע', p.color],
       ['גוון', p.shade],
       ['מספר גוון', p.shadeNumber],
       ['דגם', p.model],
@@ -354,6 +355,7 @@
       $('#f_name').value = p.name || '';
       $('#f_brand').value = p.brand || '';
       $('#f_category').value = p.domain || 'cosmetics';
+      $('#f_color').value = p.color || '';
       $('#f_shade').value = p.shade || '';
       $('#f_shadeNumber').value = p.shadeNumber || '';
       $('#f_model').value = p.model || '';
@@ -386,6 +388,7 @@
       name,
       brand: $('#f_brand').value.trim(),
       domain: $('#f_category').value,
+      color: $('#f_color').value.trim(),
       shade: $('#f_shade').value.trim(),
       shadeNumber: $('#f_shadeNumber').value.trim(),
       model: $('#f_model').value.trim(),
@@ -855,11 +858,14 @@
     });
   }
 
-  // מציג/מסתיר שדות ספציפיים לתחום (כרגע: גוון + מספר גוון — רק לקוסמטיקה)
+  // מציג/מסתיר שדות ספציפיים לתחום:
+  // גוון+מספר גוון — רק בקוסמטיקה; צבע — בתחומים שסומנו color:true
   function updateDomainFields() {
-    const isCosmetics = $('#f_category').value === 'cosmetics';
-    const row = $('#shadeRow');
-    if (row) row.classList.toggle('hidden', !isCosmetics);
+    const d = domainById($('#f_category').value);
+    const shadeRow = $('#shadeRow');
+    if (shadeRow) shadeRow.classList.toggle('hidden', d.id !== 'cosmetics');
+    const colorField = $('#colorField');
+    if (colorField) colorField.classList.toggle('hidden', !d.color);
   }
 
   // ===== מסך פתיחה: בחירת תחומי עניין =====
