@@ -5,17 +5,48 @@
 (function () {
   'use strict';
 
-  const CATEGORIES = [
-    { id: 'face', label: 'פנים', emoji: '🧴' },
-    { id: 'eyes', label: 'עיניים', emoji: '👁️' },
-    { id: 'lips', label: 'שפתיים', emoji: '💋' },
-    { id: 'nails', label: 'ציפורניים', emoji: '💅' },
-    { id: 'hair', label: 'שיער', emoji: '💇‍♀️' },
-    { id: 'body', label: 'גוף', emoji: '🧼' },
-    { id: 'perfume', label: 'בושם', emoji: '🌸' },
-    { id: 'other', label: 'אחר', emoji: '✨' },
+  // ===== תחומים (Domains) — כל תחום מכוון את חיפוש החנויות =====
+  const DOMAINS = [
+    { id: 'cosmetics',  label: 'קוסמטיקה',      emoji: '💄', stores: ['חנות קוסמטיקה', 'פרפומריה', 'בית מרקחת'] },
+    { id: 'vitamins',   label: 'ויטמינים ותוספים', emoji: '💊', stores: ['בית מרקחת', 'חנות טבע'] },
+    { id: 'electrical', label: 'מוצרי חשמל',    emoji: '🔌', stores: ['חנות חשמל', 'מוצרי חשמל'] },
+    { id: 'lighting',   label: 'תאורה ונורות',  emoji: '💡', stores: ['חנות תאורה', 'חשמל', 'כלי בית'] },
+    { id: 'food',       label: 'מזון ומזווה',   emoji: '🛒', stores: ['סופרמרקט', 'מכולת'] },
+    { id: 'baby',       label: 'תינוקות',       emoji: '🍼', stores: ['חנות תינוקות', 'בית מרקחת'] },
+    { id: 'pets',       label: 'חיות מחמד',     emoji: '🐾', stores: ['פט שופ', 'חנות חיות'] },
+    { id: 'home',       label: 'ניקיון ובית',   emoji: '🧽', stores: ['כלי בית', 'דראגסטור'] },
   ];
-  const catById = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
+  const domainById = (id) => DOMAINS.find((d) => d.id === id) || DOMAINS[0];
+  const storeEmoji = (term) => {
+    const t = term || '';
+    if (/מרקחת|פארם/.test(t)) return '💊';
+    if (/קוסמטיקה|פרפומריה/.test(t)) return '💄';
+    if (/תאורה/.test(t)) return '💡';
+    if (/חשמל/.test(t)) return '🔌';
+    if (/סופרמרקט|מכולת/.test(t)) return '🛒';
+    if (/טבע/.test(t)) return '🌿';
+    if (/תינוק/.test(t)) return '🍼';
+    if (/חיות|פט/.test(t)) return '🐾';
+    if (/כלי בית|דראגסטור/.test(t)) return '🏠';
+    return '🛍️';
+  };
+
+  // תחומי העניין שהמשתמשת בחרה (נשמר מקומית). ריק = עוד לא נבחרו → מסך פתיחה.
+  const USER_DOMAINS_KEY = 'sr_user_domains';
+  function loadUserDomains() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(USER_DOMAINS_KEY));
+      return Array.isArray(arr) ? arr.filter((id) => DOMAINS.some((d) => d.id === id)) : [];
+    } catch (e) { return []; }
+  }
+  function saveUserDomains(ids) {
+    try { localStorage.setItem(USER_DOMAINS_KEY, JSON.stringify(ids)); } catch (e) { /* ignore */ }
+  }
+  // התחומים הפעילים לתצוגה: מה שנבחר, ואם כלום — כל התחומים
+  function activeDomainList() {
+    const chosen = loadUserDomains();
+    return chosen.length ? DOMAINS.filter((d) => chosen.includes(d.id)) : DOMAINS.slice();
+  }
 
   // ערים בישראל לאיתור "איפה קונים" — ערים גדולות ובינוניות (ניתן גם להקליד עיר חופשית)
   const ISRAELI_CITIES = [
@@ -63,7 +94,7 @@
   // ----- מצב -----
   let products = [];
   let query = '';
-  let activeCategory = 'all';
+  let activeDomain = 'all';
   let editingId = null;
   let pendingPhoto = null;
   let pendingPhotoRemoved = false;
@@ -87,6 +118,7 @@
     bindEvents();
     registerSW();
     await refresh();
+    if (loadUserDomains().length === 0) openOnboard();   // ריצה ראשונה — בחירת תחומים
   }
 
   function bindEvents() {
@@ -105,6 +137,7 @@
     $('#ocrInput').addEventListener('change', onOcrPicked);
     $('#removePhoto').addEventListener('click', onRemovePhoto);
     $('#deleteBtn').addEventListener('click', onDelete);
+    $('#f_category').addEventListener('change', updateDomainFields);
 
     // פרטים
     document.querySelectorAll('[data-close-detail]').forEach((el) => el.addEventListener('click', closeDetail));
@@ -116,6 +149,13 @@
     document.querySelectorAll('[data-close-backup]').forEach((el) => el.addEventListener('click', closeBackup));
     $('#exportBtn').addEventListener('click', onExport);
     $('#importInput').addEventListener('change', onImport);
+
+    // תחומי עניין (בורר) — פתיחה מהתפריט + כפתור "המשך"
+    const chooseBtn = $('#chooseDomainsBtn');
+    if (chooseBtn) chooseBtn.addEventListener('click', () => { closeBackup(); openOnboard(); });
+    const onbDone = $('#onboardDone');
+    if (onbDone) onbDone.addEventListener('click', saveOnboard);
+    document.querySelectorAll('[data-close-onboard]').forEach((el) => el.addEventListener('click', saveOnboard));
 
     // איפה קונים (איתור)
     document.querySelectorAll('[data-close-buy]').forEach((el) => el.addEventListener('click', closeBuy));
@@ -152,7 +192,7 @@
 
   function filtered() {
     return products.filter((p) => {
-      if (activeCategory !== 'all' && p.category !== activeCategory) return false;
+      if (activeDomain !== 'all' && (p.domain || 'cosmetics') !== activeDomain) return false;
       if (!query) return true;
       const hay = [p.name, p.brand, p.shade, p.shadeNumber, p.model, p.supplierNumber, p.store, p.notes]
         .filter(Boolean).join(' ').toLowerCase();
@@ -188,7 +228,7 @@
   }
 
   function updateFilterBar(shown) {
-    const active = query !== '' || activeCategory !== 'all';
+    const active = query !== '' || activeDomain !== 'all';
     $('#searchClear').classList.toggle('hidden', query === '');
     const bar = $('#filterBar');
     if (active && products.length) {
@@ -201,7 +241,7 @@
 
   function clearFilters() {
     query = '';
-    activeCategory = 'all';
+    activeDomain = 'all';
     searchEl.value = '';
     filtersEl.querySelectorAll('.chip').forEach((b) =>
       b.classList.toggle('chip--active', b.dataset.cat === 'all')
@@ -210,7 +250,7 @@
   }
 
   function renderCard(p) {
-    const cat = catById(p.category);
+    const cat = domainById(p.domain);
     const card = document.createElement('article');
     card.className = 'card';
     card.tabIndex = 0;
@@ -261,7 +301,7 @@
   function openDetail(id) {
     const p = products.find((x) => x.id === id);
     if (!p) return;
-    const cat = catById(p.category);
+    const cat = domainById(p.domain);
     const bodyEl = $('#detailBody');
     $('#detailName').textContent = p.name || 'פרטי מוצר';
     $('#detail').dataset.id = id;
@@ -279,7 +319,7 @@
       ['מספר גוון', p.shadeNumber],
       ['דגם', p.model],
       ['מספר ספק / מק״ט', p.supplierNumber, true],
-      ['קטגוריה', `${cat.emoji} ${cat.label}`],
+      ['תחום', `${cat.emoji} ${cat.label}`],
       ['איפה קונים', p.store],
       ['מחיר אחרון', p.price ? (isFinite(p.price) ? p.price + ' ₪' : p.price) : ''],
       ['הערות', p.notes],
@@ -313,7 +353,7 @@
     if (p) {
       $('#f_name').value = p.name || '';
       $('#f_brand').value = p.brand || '';
-      $('#f_category').value = p.category || 'other';
+      $('#f_category').value = p.domain || 'cosmetics';
       $('#f_shade').value = p.shade || '';
       $('#f_shadeNumber').value = p.shadeNumber || '';
       $('#f_model').value = p.model || '';
@@ -323,10 +363,12 @@
       $('#f_notes').value = p.notes || '';
       setPhotoPreview(p.photo instanceof Blob ? p.photo : null);
     } else {
-      // ירושת הקטגוריה מהסינון הפעיל — כדי לא לבחור פעמיים
-      $('#f_category').value = activeCategory !== 'all' ? activeCategory : 'face';
+      // ירושת התחום מהסינון הפעיל — כדי לא לבחור פעמיים
+      const list = activeDomainList();
+      $('#f_category').value = activeDomain !== 'all' ? activeDomain : (list[0] ? list[0].id : 'cosmetics');
       setPhotoPreview(null);
     }
+    updateDomainFields();   // מציג שדות ספציפיים לתחום (גוון לקוסמטיקה)
 
     show('#sheet');
     setTimeout(() => $('#f_name').focus(), 250);
@@ -343,7 +385,7 @@
       id: editingId || undefined,
       name,
       brand: $('#f_brand').value.trim(),
-      category: $('#f_category').value,
+      domain: $('#f_category').value,
       shade: $('#f_shade').value.trim(),
       shadeNumber: $('#f_shadeNumber').value.trim(),
       model: $('#f_model').value.trim(),
@@ -705,24 +747,22 @@
     return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
   }
 
-  // מעדכן את הקישורים: מחפשים קודם כל *חנויות קוסמטיקה* קרובות (ולא את מחרוזת
-  // המוצר המלאה — שגרמה למפות להחזיר עסקים אקראיים/הזויים). המוצר משמש כהקשר בלבד.
+  // מעדכן את כפתורי החיפוש לפי *התחום* של המוצר: מחפש סוגי חנויות רלוונטיים קרובים
+  // (ולא את מחרוזת המוצר המלאה — שגרמה למפות להחזיר עסקים אקראיים). המוצר = הקשר בלבד.
   function updateBuyLinks() {
     if (!buyProduct) return;
+    const box = $('#buyActions');
+    if (!box) return;
     const city = buyMode === 'city' ? ($('#buyCity').value || '') : '';
-    $('#buyGo').href = mapsUrl('חנות קוסמטיקה', city);
-    $('#buyGoPharm').href = mapsUrl('בית מרקחת פארם', city);
+    const d = domainById(buyProduct.domain);
+    let html = d.stores.map((term, i) =>
+      `<a class="wide-btn ${i > 0 ? 'wide-btn--ghost' : ''}" target="_blank" rel="noopener" href="${mapsUrl(term, city)}">${storeEmoji(term)} ${esc(term)} קרוב</a>`
+    ).join('');
     const brand = (buyProduct.brand || '').trim();
-    const brandBtn = $('#buyGoBrand');
-    if (brandBtn) {
-      if (brand) {
-        brandBtn.href = mapsUrl(brand + ' קוסמטיקה', city);
-        brandBtn.textContent = `🔎 חנויות ${brand}`;
-        brandBtn.classList.remove('hidden');
-      } else {
-        brandBtn.classList.add('hidden');
-      }
+    if (brand) {
+      html += `<a class="wide-btn wide-btn--ghost" target="_blank" rel="noopener" href="${mapsUrl(brand, city)}">🔎 חנויות ${esc(brand)}</a>`;
     }
+    box.innerHTML = html;
   }
 
   // חנות שמורה למוצר — כדי למצוא אותה שוב בקלות
@@ -796,21 +836,54 @@
 
   // ============ בונים UI ============
   function buildCategorySelect() {
-    $('#f_category').innerHTML = CATEGORIES.map((c) => `<option value="${c.id}">${c.emoji} ${c.label}</option>`).join('');
+    // הטופס מציג את התחומים שהמשתמשת בחרה (או כולם אם לא בחרה)
+    $('#f_category').innerHTML = activeDomainList()
+      .map((d) => `<option value="${d.id}">${d.emoji} ${d.label}</option>`).join('');
   }
 
   function buildFilters() {
-    const all = [{ id: 'all', label: 'הכל', emoji: '🗂️' }].concat(CATEGORIES);
+    const all = [{ id: 'all', label: 'הכל', emoji: '🗂️' }].concat(activeDomainList());
     filtersEl.innerHTML = all.map((c) =>
-      `<button class="chip ${c.id === activeCategory ? 'chip--active' : ''}" data-cat="${c.id}" role="tab">${c.emoji} ${c.label}</button>`
+      `<button class="chip ${c.id === activeDomain ? 'chip--active' : ''}" data-cat="${c.id}" role="tab">${c.emoji} ${c.label}</button>`
     ).join('');
     filtersEl.querySelectorAll('.chip').forEach((btn) => {
       btn.addEventListener('click', () => {
-        activeCategory = btn.dataset.cat;
+        activeDomain = btn.dataset.cat;
         filtersEl.querySelectorAll('.chip').forEach((b) => b.classList.toggle('chip--active', b === btn));
         render();
       });
     });
+  }
+
+  // מציג/מסתיר שדות ספציפיים לתחום (כרגע: גוון + מספר גוון — רק לקוסמטיקה)
+  function updateDomainFields() {
+    const isCosmetics = $('#f_category').value === 'cosmetics';
+    const row = $('#shadeRow');
+    if (row) row.classList.toggle('hidden', !isCosmetics);
+  }
+
+  // ===== מסך פתיחה: בחירת תחומי עניין =====
+  function openOnboard() {
+    const chosen = new Set(loadUserDomains());
+    const box = $('#onboardChips');
+    if (!box) return;
+    box.innerHTML = DOMAINS.map((d) =>
+      `<button type="button" class="dchip ${chosen.has(d.id) ? 'dchip--on' : ''}" data-id="${d.id}" aria-pressed="${chosen.has(d.id)}">${d.emoji} ${esc(d.label)}</button>`
+    ).join('');
+    box.querySelectorAll('.dchip').forEach((b) => b.addEventListener('click', () => {
+      const on = b.classList.toggle('dchip--on');
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }));
+    show('#onboard');
+  }
+  function saveOnboard() {
+    const ids = [...$('#onboardChips').querySelectorAll('.dchip--on')].map((b) => b.dataset.id);
+    saveUserDomains(ids);           // ריק = כל התחומים יוצגו
+    hide('#onboard');
+    activeDomain = 'all';
+    buildCategorySelect();
+    buildFilters();
+    render();
   }
 
   function buildDatalists() {
