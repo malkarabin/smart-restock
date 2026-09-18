@@ -860,9 +860,12 @@
     const all = [{ id: 'all', label: 'הכל', emoji: '🗂️' }].concat(activeDomainList());
     filtersEl.innerHTML = all.map((c) =>
       `<button class="chip ${c.id === activeDomain ? 'chip--active' : ''}" data-cat="${c.id}" role="tab">${c.emoji} ${c.label}</button>`
-    ).join('');
+    ).join('') +
+      // צ'יפ גלוי לניהול תחומי העניין — כדי שיהיה ברור איפה בוחרים/משנים
+      `<button class="chip chip--manage" data-cat="__manage" type="button" title="בחירת תחומי עניין">⚙️ תחומים</button>`;
     filtersEl.querySelectorAll('.chip').forEach((btn) => {
       btn.addEventListener('click', () => {
+        if (btn.dataset.cat === '__manage') { openOnboard(); return; }
         activeDomain = btn.dataset.cat;
         filtersEl.querySelectorAll('.chip').forEach((b) => b.classList.toggle('chip--active', b === btn));
         render();

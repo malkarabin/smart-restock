@@ -457,3 +457,6 @@ a.wide-btn { text-decoration: none; display: block; }
   border-radius: 999px; padding: 10px 16px; font-weight: 600; font-size: 1rem; cursor: pointer;
 }
 .dchip--on { background: var(--rose); color: #fff; border-color: var(--rose); }
+
+/* צ'יפ ניהול תחומים — נבדל מהצ'יפים הרגילים */
+.chip--manage { border-style: dashed; opacity: .9; }
