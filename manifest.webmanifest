@@ -9,8 +9,8 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f2fbfa",
-  "theme_color": "#e5308a",
-  "categories": ["lifestyle", "shopping", "beauty"],
+  "theme_color": "#0fb5ac",
+  "categories": ["lifestyle", "shopping", "productivity"],
   "icons": [
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
