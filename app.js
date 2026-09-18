@@ -108,6 +108,7 @@
   let buyProduct = null;          // המוצר שעבורו פתחנו "איפה קונים"
   let buyMode = 'here';           // 'here' = המיקום שלי, 'city' = עיר נבחרת
   let lastBuyLink = '';           // הלינק האחרון שנלחץ — לשמירה מהירה של חנות
+  let lastBuyLabel = '';          // תיאור החיפוש האחרון (שם ברירת מחדל לחנות)
   let buyCoords = null;           // { lat, lng } — נשמר לאחר איתור GPS
   const objectUrls = new Set();
 
@@ -186,12 +187,15 @@
     $('#buyCityOptions').addEventListener('mousedown', onCityOptionPick);
     $('#saveStore').addEventListener('click', onSaveStore);
     $('#storeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); onSaveStore(); } });
-    // תופסים אוטומטית את הלינק שלוחצים עליו — כדי לשמור חנות בלי להקליד לינק
+    // תופסים אוטומטית את החיפוש האחרון שלחצת — וממלאים שם+לינק כדי לשמור בלחיצה, בלי להקליד
     $('#buyActions').addEventListener('click', (e) => {
       const a = e.target.closest('a');
       if (!a) return;
       lastBuyLink = a.href;
+      lastBuyLabel = a.dataset.store || a.textContent.trim();
+      const nameEl = $('#storeInput');
       const linkEl = $('#storeLinkInput');
+      if (nameEl && !nameEl.value.trim()) nameEl.value = lastBuyLabel;
       if (linkEl && !linkEl.value.trim()) linkEl.value = a.href;
     });
 
@@ -725,6 +729,7 @@
     $('#buyProduct').textContent = [p.brand, p.name, p.color, p.shade].filter(Boolean).join(' · ') || p.name || '';
     $('#storeInput').value = '';
     lastBuyLink = '';
+    lastBuyLabel = '';
     $('#storeLinkInput').value = p.storeLink || '';
     renderSavedStore();
     updateBuyLinks();
@@ -788,15 +793,16 @@
     if (!box) return;
     const city = buyMode === 'city' ? ($('#buyCity').value || '') : '';
     const d = domainById(buyProduct.domain);
+    const near = city ? ' · ' + city : '';
     let html = d.stores.map((term, i) =>
-      `<a class="wide-btn ${i > 0 ? 'wide-btn--ghost' : ''}" target="_blank" rel="noopener" href="${mapsUrl(term, city)}">${storeEmoji(term)} ${esc(term)} קרוב</a>`
+      `<a class="wide-btn ${i > 0 ? 'wide-btn--ghost' : ''}" data-store="${esc(term + near)}" target="_blank" rel="noopener" href="${mapsUrl(term, city)}">${storeEmoji(term)} ${esc(term)} קרוב</a>`
     ).join('');
     const brand = (buyProduct.brand || '').trim();
     if (brand) {
-      html += `<a class="wide-btn wide-btn--ghost" target="_blank" rel="noopener" href="${mapsUrl(brand, city)}">🔎 חנויות ${esc(brand)}</a>`;
+      html += `<a class="wide-btn wide-btn--ghost" data-store="${esc('חנויות ' + brand + near)}" target="_blank" rel="noopener" href="${mapsUrl(brand, city)}">🔎 חנויות ${esc(brand)}</a>`;
     }
     // קנייה אונליין — חיפוש גוגל של המוצר המדויק (מגיע לאתרי חנויות)
-    html += `<a class="wide-btn wide-btn--ghost" target="_blank" rel="noopener" href="${webSearchUrl((productTerms(buyProduct) || buyProduct.name || '') + ' קנייה אונליין')}">🛒 קנייה אונליין</a>`;
+    html += `<a class="wide-btn wide-btn--ghost" data-store="${esc((buyProduct.name || 'המוצר') + ' — אונליין')}" target="_blank" rel="noopener" href="${webSearchUrl((productTerms(buyProduct) || buyProduct.name || '') + ' קנייה אונליין')}">🛒 קנייה אונליין</a>`;
     box.innerHTML = html;
   }
 
@@ -817,9 +823,10 @@
 
   async function onSaveStore() {
     if (!buyProduct) return;
-    const name = $('#storeInput').value.trim();
-    if (!name) { $('#storeInput').focus(); return; }
+    // שם: מה שהוקלד, אחרת החיפוש האחרון שנלחץ — כדי שלא צריך להקליד כלום
+    const name = ($('#storeInput').value.trim() || lastBuyLabel || '');
     const link = ($('#storeLinkInput').value.trim() || lastBuyLink || '');
+    if (!name && !link) { toast('לחצי על חיפוש חנות קודם, או הקלידי שם'); $('#storeInput').focus(); return; }
     const id = buyProduct.id;
     await Store.put(Object.assign({}, buyProduct, { store: name, storeLink: link }));
     await refresh();
