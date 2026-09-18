@@ -104,13 +104,13 @@ button { cursor: pointer; }
 }
 .filters::-webkit-scrollbar { display: none; }
 .chip {
-  flex: 0 0 auto; border: 1px solid var(--line); background: #fff;
-  color: var(--ink-soft); border-radius: 999px; padding: 7px 14px;
-  font-size: .9rem; font-weight: 500; white-space: nowrap; transition: all .15s;
+  flex: 0 0 auto; border: 1.5px solid var(--rose-soft); background: #fff;
+  color: var(--rose-deep); border-radius: 999px; padding: 7px 14px;
+  font-size: .9rem; font-weight: 600; white-space: nowrap; transition: all .15s;
 }
 .chip--active {
   background: var(--rose); border-color: var(--rose); color: #fff;
-  box-shadow: 0 4px 12px rgba(201,113,143,.35);
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
 }
 
 /* ---------- List ---------- */
@@ -467,10 +467,10 @@ a.wide-btn { text-decoration: none; display: block; }
 .onboard-note { color: var(--muted); font-size: .92rem; margin: 0 0 16px; line-height: 1.5; }
 .domain-chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .dchip {
-  border: 1.5px solid var(--rose-soft); background: #fff; color: var(--ink);
+  border: 2px solid var(--rose); background: #fff; color: var(--rose-deep);
   border-radius: 999px; padding: 10px 16px; font-weight: 600; font-size: 1rem; cursor: pointer;
 }
-.dchip--on { background: var(--rose); color: #fff; border-color: var(--rose); }
+.dchip--on { background: var(--rose); color: #fff; }
 
 /* צ'יפ ניהול תחומים — נבדל מהצ'יפים הרגילים */
 .chip--manage { border-style: dashed; opacity: .9; }

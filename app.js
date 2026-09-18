@@ -881,9 +881,10 @@
 
   function buildFilters() {
     const all = [{ id: 'all', label: 'הכל', emoji: '🗂️' }].concat(activeDomainList());
-    filtersEl.innerHTML = all.map((c) =>
-      `<button class="chip ${c.id === activeDomain ? 'chip--active' : ''}" data-cat="${c.id}" role="tab">${c.emoji} ${c.label}</button>`
-    ).join('') +
+    filtersEl.innerHTML = all.map((c) => {
+      const domClass = c.id === 'all' ? '' : ' dom-' + c.id;   // צבע לכל תחום
+      return `<button class="chip${domClass} ${c.id === activeDomain ? 'chip--active' : ''}" data-cat="${c.id}" role="tab">${c.emoji} ${c.label}</button>`;
+    }).join('') +
       // צ'יפ גלוי לניהול תחומי העניין — כדי שיהיה ברור איפה בוחרים/משנים
       `<button class="chip chip--manage" data-cat="__manage" type="button" title="בחירת תחומי עניין">⚙️ תחומים</button>`;
     filtersEl.querySelectorAll('.chip').forEach((btn) => {
@@ -913,7 +914,7 @@
     const box = $('#onboardChips');
     if (!box) return;
     box.innerHTML = DOMAINS.map((d) =>
-      `<button type="button" class="dchip ${chosen.has(d.id) ? 'dchip--on' : ''}" data-id="${d.id}" aria-pressed="${chosen.has(d.id)}">${d.emoji} ${esc(d.label)}</button>`
+      `<button type="button" class="dchip dom-${d.id} ${chosen.has(d.id) ? 'dchip--on' : ''}" data-id="${d.id}" aria-pressed="${chosen.has(d.id)}">${d.emoji} ${esc(d.label)}</button>`
     ).join('');
     box.querySelectorAll('.dchip').forEach((b) => b.addEventListener('click', () => {
       const on = b.classList.toggle('dchip--on');
