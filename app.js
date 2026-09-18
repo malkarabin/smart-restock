@@ -17,6 +17,13 @@
     { id: 'home',       label: 'ניקיון ובית',   emoji: '🧽', stores: ['כלי בית', 'דראגסטור'], color: true },
   ];
   const domainById = (id) => DOMAINS.find((d) => d.id === id) || DOMAINS[0];
+  // מחיל אקצנט צבע של התחום על אלמנט (מסך מוצר / כרטיס)
+  function applyDomainColor(el, domainId, tinted) {
+    if (!el) return;
+    DOMAINS.forEach((d) => el.classList.remove('dom-' + d.id));
+    el.classList.add('dom-' + domainById(domainId).id);
+    if (tinted) el.classList.add('sheet--themed');
+  }
   const storeEmoji = (term) => {
     const t = term || '';
     if (/מרקחת|פארם/.test(t)) return '💊';
@@ -100,6 +107,7 @@
   let pendingPhotoRemoved = false;
   let buyProduct = null;          // המוצר שעבורו פתחנו "איפה קונים"
   let buyMode = 'here';           // 'here' = המיקום שלי, 'city' = עיר נבחרת
+  let lastBuyLink = '';           // הלינק האחרון שנלחץ — לשמירה מהירה של חנות
   let buyCoords = null;           // { lat, lng } — נשמר לאחר איתור GPS
   const objectUrls = new Set();
 
@@ -178,6 +186,14 @@
     $('#buyCityOptions').addEventListener('mousedown', onCityOptionPick);
     $('#saveStore').addEventListener('click', onSaveStore);
     $('#storeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); onSaveStore(); } });
+    // תופסים אוטומטית את הלינק שלוחצים עליו — כדי לשמור חנות בלי להקליד לינק
+    $('#buyActions').addEventListener('click', (e) => {
+      const a = e.target.closest('a');
+      if (!a) return;
+      lastBuyLink = a.href;
+      const linkEl = $('#storeLinkInput');
+      if (linkEl && !linkEl.value.trim()) linkEl.value = a.href;
+    });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { closeEditor(); closeDetail(); closeBackup(); closeBuy(); }
@@ -252,7 +268,7 @@
   function renderCard(p) {
     const cat = domainById(p.domain);
     const card = document.createElement('article');
-    card.className = 'card';
+    card.className = 'card dom-' + cat.id;
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
 
@@ -305,6 +321,7 @@
     const bodyEl = $('#detailBody');
     $('#detailName').textContent = p.name || 'פרטי מוצר';
     $('#detail').dataset.id = id;
+    applyDomainColor($('#detail'), p.domain, true);   // גוון המסך לפי התחום
 
     let photoHTML = '';
     if (p.photo instanceof Blob) {
@@ -698,14 +715,17 @@
   // ============ "איפה קונים" (איתור הפריט) ============
   function openBuy(p) {
     buyProduct = p;
+    applyDomainColor($('#buy'), p.domain, true);   // גוון המסך לפי התחום
     buyMode = 'here';
     $('#buyCity').value = '';
     closeCityOptions();
     $('#buyCityWrap').classList.add('hidden');
     $('#buyHere').classList.add('loc-btn--active');
     $('#buyCityBtn').classList.remove('loc-btn--active');
-    $('#buyProduct').textContent = [p.brand, p.name, p.shade].filter(Boolean).join(' · ') || p.name || '';
+    $('#buyProduct').textContent = [p.brand, p.name, p.color, p.shade].filter(Boolean).join(' · ') || p.name || '';
     $('#storeInput').value = '';
+    lastBuyLink = '';
+    $('#storeLinkInput').value = p.storeLink || '';
     renderSavedStore();
     updateBuyLinks();
     requestLocation();   // מבקש GPS מראש כדי שהתוצאות יהיו לפי הקרבה אלייך
@@ -785,8 +805,10 @@
     const el = $('#savedStore');
     const p = buyProduct;
     if (p && p.store) {
-      const href = mapsUrl(p.store, buyMode === 'city' ? ($('#buyCity').value || '') : '');
-      el.innerHTML = `⭐ חנות שמורה: <strong>${esc(p.store)}</strong> · <a href="${href}" target="_blank" rel="noopener">פתחי במפה</a>`;
+      // אם נשמר לינק — פותחים אותו ישירות; אחרת נופלים לחיפוש במפה לפי השם
+      const href = p.storeLink || mapsUrl(p.store, buyMode === 'city' ? ($('#buyCity').value || '') : '');
+      const label = p.storeLink ? 'פתחי חנות' : 'פתחי במפה';
+      el.innerHTML = `⭐ חנות שמורה: <strong>${esc(p.store)}</strong> · <a href="${esc(href)}" target="_blank" rel="noopener">${label}</a>`;
       el.classList.remove('hidden');
     } else {
       el.classList.add('hidden');
@@ -797,13 +819,14 @@
     if (!buyProduct) return;
     const name = $('#storeInput').value.trim();
     if (!name) { $('#storeInput').focus(); return; }
+    const link = ($('#storeLinkInput').value.trim() || lastBuyLink || '');
     const id = buyProduct.id;
-    await Store.put(Object.assign({}, buyProduct, { store: name }));
+    await Store.put(Object.assign({}, buyProduct, { store: name, storeLink: link }));
     await refresh();
-    buyProduct = products.find((x) => x.id === id) || Object.assign({}, buyProduct, { store: name });
+    buyProduct = products.find((x) => x.id === id) || Object.assign({}, buyProduct, { store: name, storeLink: link });
     $('#storeInput').value = '';
     renderSavedStore();
-    toast('החנות נשמרה ⭐');
+    toast(link ? 'החנות והלינק נשמרו ⭐' : 'החנות נשמרה ⭐');
   }
 
   // ============ גיבוי ============
@@ -881,6 +904,7 @@
     if (shadeRow) shadeRow.classList.toggle('hidden', d.id !== 'cosmetics');
     const colorField = $('#colorField');
     if (colorField) colorField.classList.toggle('hidden', !d.color);
+    applyDomainColor($('#sheet'), d.id, true);   // גוון הטופס לפי התחום הנבחר
   }
 
   // ===== מסך פתיחה: בחירת תחומי עניין =====

@@ -1,26 +1,40 @@
 /* ============================================================
-   Restock My Cosmetics — עיצוב
-   פלטת ורוד/רוז · מובייל-first · RTL
+   ריסטוק חכם — עיצוב
+   בסיס טורקיז · אקצנט צבע לכל תחום · מובייל-first · RTL
    ============================================================ */
 :root {
-  --rose:        #e5308a;
-  --rose-deep:   #b81e6b;
-  --rose-soft:   #f7a3ce;
-  --rose-tint:   #fdeaf4;
-  --bg:          #fff5f8;
+  /* בסיס: טורקיז (זהות האפליקציה). כל תחום דורס את המשתנים האלה עם צבע משלו. */
+  --rose:        #0fb5ac;
+  --rose-deep:   #0a8880;
+  --rose-soft:   #9fe0db;
+  --rose-tint:   #e6f7f5;
+  --bg:          #f2fbfa;
   --card:        #ffffff;
-  --ink:         #3c2a32;
-  --ink-soft:    #7a6670;
-  --muted:       #a9949d;
-  --line:        #f0dbe3;
+  --ink:         #2a3a39;
+  --ink-soft:    #5f7371;
+  --muted:       #93a5a3;
+  --line:        #d9ece9;
   --gold:        #e0af61;
   --danger:      #d8446b;
-  --shadow:      0 8px 24px rgba(168, 79, 112, 0.12);
-  --shadow-lg:   0 -10px 40px rgba(120, 50, 75, 0.22);
+  --shadow:      0 8px 24px rgba(20, 90, 85, 0.12);
+  --shadow-lg:   0 -10px 40px rgba(15, 70, 66, 0.20);
   --radius:      18px;
   --safe-top:    env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* פלטות אקצנט לכל תחום — דורסות את משתני ה-accent בתוך המסך של המוצר */
+.dom-cosmetics  { --rose:#e5308a; --rose-deep:#b81e6b; --rose-soft:#f7a3ce; --rose-tint:#fdeaf4; }
+.dom-vitamins   { --rose:#2fa84f; --rose-deep:#1f7d3a; --rose-soft:#a9dcb5; --rose-tint:#e8f6ec; }
+.dom-electrical { --rose:#2f6fe0; --rose-deep:#1f4fa8; --rose-soft:#aec6f2; --rose-tint:#e9f0fd; }
+.dom-lighting   { --rose:#e0a020; --rose-deep:#a87616; --rose-soft:#f0d79a; --rose-tint:#fdf4e0; }
+.dom-food       { --rose:#ef6c2e; --rose-deep:#b84e1c; --rose-soft:#f6bfa3; --rose-tint:#fdeee6; }
+.dom-baby       { --rose:#a86fd8; --rose-deep:#7d4aa8; --rose-soft:#dcc0f0; --rose-tint:#f4ecfb; }
+.dom-pets       { --rose:#9a6b3f; --rose-deep:#73502e; --rose-soft:#d8bfa3; --rose-tint:#f5eee6; }
+.dom-home       { --rose:#3f9f88; --rose-deep:#2c7763; --rose-soft:#a9ddce; --rose-tint:#e7f6f0; }
+
+/* רקע רך בגוון התחום למסך המוצר (עדין — לא הצפה) */
+.sheet--themed .sheet__panel { background: linear-gradient(180deg, var(--rose-tint), var(--card) 200px); }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -460,3 +474,10 @@ a.wide-btn { text-decoration: none; display: block; }
 
 /* צ'יפ ניהול תחומים — נבדל מהצ'יפים הרגילים */
 .chip--manage { border-style: dashed; opacity: .9; }
+
+/* שדה לינק לחנות (שמירה מהירה) */
+.store-link-input {
+  width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+  background: #fff; color: var(--ink); outline: none; margin-top: 8px; font-size: 15px;
+}
+.store-link-input:focus { border-color: var(--rose); box-shadow: 0 0 0 3px var(--rose-tint); }

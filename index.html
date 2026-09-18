@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#e5308a" />
+  <meta name="theme-color" content="#0fb5ac" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="ריסטוק חכם" />
@@ -218,10 +218,11 @@
         <div class="buy-actions" id="buyActions">
         </div>
         <div class="save-store">
-          <input id="storeInput" type="text" placeholder="מצאת חנות טובה? שמרי אותה כאן" aria-label="שם החנות לשמירה" />
+          <input id="storeInput" type="text" placeholder="מצאת חנות טובה? שם החנות…" aria-label="שם החנות לשמירה" />
           <button type="button" id="saveStore" class="chip-btn">⭐ שמור</button>
         </div>
-        <p class="buy-hint">נפתחת מפת Google עם חנויות שמוכרות את המוצר — לפי המיקום הנוכחי שלך או העיר שבחרת. שמירת חנות עוזרת למצוא אותה בקלות בפעם הבאה.</p>
+        <input id="storeLinkInput" class="store-link-input" type="url" inputmode="url" placeholder="לינק לחנות / למפה — נתפס אוטומטית כשלוחצים חיפוש (או הדביקי)" aria-label="לינק לחנות" />
+        <p class="buy-hint">לוחצים על כפתור חיפוש → הלינק נשמר אוטומטית. אפשר גם להדביק לינק לאתר חנות. שמירת חנות = לחיצה אחת בפעם הבאה, בלי להקליד מחדש.</p>
       </div>
     </div>
   </div>
