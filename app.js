@@ -691,6 +691,8 @@
     closeCityOptions();
     $('#buyCity').blur();   // מוריד את המקלדת כדי שרואים את כפתורי החיפוש
     updateBuyLinks();
+    // גוללים לכפתורי החנויות כדי שברור מה השלב הבא
+    setTimeout(() => { const b = $('#buyActions'); if (b) b.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 60);
   }
 
   // ============ "איפה קונים" (איתור הפריט) ============
@@ -750,6 +752,14 @@
     return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
   }
 
+  // חיפוש רגיל בגוגל (לא מפות) — להגיע לאתרי חנויות אונליין שמוכרות את המוצר
+  function webSearchUrl(terms) {
+    return 'https://www.google.com/search?q=' + encodeURIComponent(terms);
+  }
+  function productTerms(p) {
+    return [p.brand, p.name, p.color, p.shade, p.shadeNumber, p.model].filter(Boolean).join(' ');
+  }
+
   // מעדכן את כפתורי החיפוש לפי *התחום* של המוצר: מחפש סוגי חנויות רלוונטיים קרובים
   // (ולא את מחרוזת המוצר המלאה — שגרמה למפות להחזיר עסקים אקראיים). המוצר = הקשר בלבד.
   function updateBuyLinks() {
@@ -765,6 +775,8 @@
     if (brand) {
       html += `<a class="wide-btn wide-btn--ghost" target="_blank" rel="noopener" href="${mapsUrl(brand, city)}">🔎 חנויות ${esc(brand)}</a>`;
     }
+    // קנייה אונליין — חיפוש גוגל של המוצר המדויק (מגיע לאתרי חנויות)
+    html += `<a class="wide-btn wide-btn--ghost" target="_blank" rel="noopener" href="${webSearchUrl((productTerms(buyProduct) || buyProduct.name || '') + ' קנייה אונליין')}">🛒 קנייה אונליין</a>`;
     box.innerHTML = html;
   }
 
