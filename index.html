@@ -74,11 +74,7 @@
               📷 צילום / העלאה
               <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
             </label>
-            <label class="chip-btn chip-btn--accent">
-              🏷️ סרוק ברקוד
-              <input id="barcodeInput" type="file" accept="image/*" capture="environment" hidden />
-            </label>
-            <button type="button" id="lensBtn" class="chip-btn">🔍 זיהוי בתמונה</button>
+            <button type="button" id="barcodeBtn" class="chip-btn chip-btn--accent">🏷️ סרוק ברקוד</button>
             <button type="button" id="removePhoto" class="chip-btn chip-btn--ghost hidden">הסרת תמונה</button>
           </div>
         </div>
@@ -240,6 +236,20 @@
         <button type="button" id="onboardDone" class="save-btn">✓ המשך</button>
       </div>
     </div>
+  </div>
+
+  <!-- Live barcode scanner -->
+  <div id="scanModal" class="scan-modal hidden" role="dialog" aria-modal="true" aria-label="סריקת ברקוד">
+    <div class="scan-modal__bar">
+      <button type="button" id="scanClose" class="scan-x">✕ סגור</button>
+      <span class="scan-modal__title">כווני את המצלמה לברקוד</span>
+      <label class="scan-file">
+        🖼️ תמונה
+        <input id="barcodeFile" type="file" accept="image/*" hidden />
+      </label>
+    </div>
+    <div id="scanRegion" class="scan-region"></div>
+    <p id="scanMsg" class="scan-msg">מכוונים את הפסים של הברקוד לתוך המסגרת…</p>
   </div>
 
   <datalist id="brandList"></datalist>

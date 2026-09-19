@@ -143,8 +143,9 @@
     $('#form').addEventListener('submit', onSave);
     document.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeEditor));
     $('#photoInput').addEventListener('change', onPhotoPicked);
-    $('#barcodeInput').addEventListener('change', onBarcodePicked);
-    $('#lensBtn').addEventListener('click', onLensSearch);
+    $('#barcodeBtn').addEventListener('click', openBarcodeScanner);
+    $('#scanClose').addEventListener('click', stopBarcodeScanner);
+    $('#barcodeFile').addEventListener('change', onBarcodeFile);
     $('#removePhoto').addEventListener('click', onRemovePhoto);
     $('#deleteBtn').addEventListener('click', onDelete);
     $('#f_category').addEventListener('change', updateDomainFields);
@@ -507,48 +508,85 @@
     el.classList.toggle('scan-status--busy', !!busy);
   }
 
-  async function onBarcodePicked(e) {
+  // טעינת ספריית הסורק (html5-qrcode) לפי דרישה
+  let html5qrLoading = null;
+  function loadScanLib() {
+    if (window.Html5Qrcode) return Promise.resolve();
+    if (html5qrLoading) return html5qrLoading;
+    html5qrLoading = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      s.onload = resolve;
+      s.onerror = () => { html5qrLoading = null; reject(new Error('load fail')); };
+      document.head.appendChild(s);
+    });
+    return html5qrLoading;
+  }
+  function barcodeFormats() {
+    const F = window.Html5QrcodeSupportedFormats || {};
+    return [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.UPC_EAN_EXTENSION, F.CODE_128, F.CODE_39]
+      .filter((x) => x !== undefined);
+  }
+  function setScanMsg(msg) { const el = $('#scanMsg'); if (el) el.textContent = msg || ''; }
+
+  let barcodeScanner = null;
+  async function openBarcodeScanner() {
+    $('#scanModal').classList.remove('hidden');
+    setScanMsg('מפעיל מצלמה…');
+    try { await loadScanLib(); }
+    catch (e) { setScanMsg('לא הצלחתי לטעון את הסורק — בדקי חיבור אינטרנט. אפשר "🖼️ תמונה".'); return; }
+    try {
+      barcodeScanner = new window.Html5Qrcode('scanRegion', { formatsToSupport: barcodeFormats(), verbose: false });
+      await barcodeScanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 260, height: 170 } },
+        async (decodedText) => { await stopBarcodeScanner(); await handleBarcode(decodedText); },
+        () => {}   // כשל פר-פריים — מתעלמים
+      );
+      setScanMsg('מכוונים את הפסים של הברקוד לתוך המסגרת…');
+    } catch (err) {
+      console.error(err);
+      setScanMsg('לא ניתן להפעיל מצלמה (אולי חסרה הרשאה). נסי "🖼️ תמונה" — בחירת צילום של הברקוד.');
+    }
+  }
+  async function stopBarcodeScanner() {
+    if (barcodeScanner) {
+      try { await barcodeScanner.stop(); } catch (_) {}
+      try { barcodeScanner.clear(); } catch (_) {}
+      barcodeScanner = null;
+    }
+    $('#scanModal').classList.add('hidden');
+  }
+  // חלופה: קריאת ברקוד מתמונה שנבחרה (למי שאין מצלמה / הרשאה)
+  async function onBarcodeFile(e) {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    // שומרים גם כתמונת המוצר
+    setScanMsg('קורא ברקוד מהתמונה…');
     try {
-      const blob = await compressImage(file, 1400, 0.85);
-      pendingPhoto = blob; pendingPhotoRemoved = false; setPhotoPreview(blob);
-    } catch (_) { /* לא קריטי */ }
-
-    if (!('BarcodeDetector' in window)) {
-      setScanStatus('הדפדפן לא תומך בסריקת ברקוד — נסי ב-Chrome, או השתמשי ב"זיהוי בתמונה".');
-      return;
-    }
-    setScanStatus('קורא ברקוד…', true);
-    try {
-      const bitmap = await createImageBitmap(file);
-      const detector = new window.BarcodeDetector({
-        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
-      });
-      const codes = await detector.detect(bitmap);
-      if (!codes || !codes.length) {
-        setScanStatus('לא זוהה ברקוד. צלמי מקרוב, ישר ובאור טוב — או נסי "זיהוי בתמונה".');
-        return;
-      }
-      const barcode = (codes[0].rawValue || '').trim();
-      if (!barcode) { setScanStatus('לא הצלחתי לקרוא את הברקוד. נסי שוב.'); return; }
-      if (!$('#f_supplier').value.trim()) $('#f_supplier').value = barcode;   // מק״ט = הברקוד
-      setScanStatus('מחפש מוצר לפי ברקוד ' + barcode + '…', true);
-      const info = await lookupBarcode(barcode);
-      const filled = [];
-      if (info && info.name && !$('#f_name').value.trim()) { $('#f_name').value = info.name; filled.push('שם'); }
-      if (info && info.brand && !$('#f_brand').value.trim()) { $('#f_brand').value = info.brand; filled.push('מותג'); }
-      if (filled.length) {
-        setScanStatus('✓ מולא לפי הברקוד: ' + filled.join(', ') + '. השלימי דגם / צבע / גוון אם צריך.');
-      } else {
-        setScanStatus('הברקוד נשמר כמק״ט (' + barcode + '), אך המוצר לא נמצא במאגר. מלאי שם ידנית, או נסי "זיהוי בתמונה".');
-      }
+      await loadScanLib();
+      const reader = new window.Html5Qrcode('scanRegion', { formatsToSupport: barcodeFormats(), verbose: false });
+      const text = await reader.scanFile(file, false);
+      try { reader.clear(); } catch (_) {}
+      await stopBarcodeScanner();
+      await handleBarcode(text);
     } catch (err) {
       console.error(err);
-      setScanStatus('שגיאה בקריאת הברקוד. נסי שוב, או מלאי ידנית.');
+      setScanMsg('לא זוהה ברקוד בתמונה. צלמי את הברקוד עצמו (הפסים), מקרוב וישר.');
     }
+  }
+  // אחרי קריאת ברקוד: שומר מק״ט ומחפש שם+מותג במאגר
+  async function handleBarcode(text) {
+    const barcode = (text || '').trim();
+    if (!barcode) return;
+    if (!$('#f_supplier').value.trim()) $('#f_supplier').value = barcode;
+    setScanStatus('מחפש מוצר לפי ברקוד ' + barcode + '…', true);
+    const info = await lookupBarcode(barcode);
+    const filled = [];
+    if (info && info.name && !$('#f_name').value.trim()) { $('#f_name').value = info.name; filled.push('שם'); }
+    if (info && info.brand && !$('#f_brand').value.trim()) { $('#f_brand').value = info.brand; filled.push('מותג'); }
+    if (filled.length) setScanStatus('✓ מולא לפי הברקוד: ' + filled.join(', ') + '. השלימי דגם / צבע / גוון אם צריך.');
+    else setScanStatus('הברקוד נשמר כמק״ט (' + barcode + '), אך המוצר לא נמצא במאגר. מלאי שם ידנית.');
   }
 
   // חיפוש שם+מותג לפי ברקוד במאגרים ציבוריים חינמיים (Open Beauty/Food/Products Facts)
@@ -572,22 +610,6 @@
       } catch (_) { /* ננסה את המאגר הבא */ }
     }
     return null;
-  }
-
-  // מוסר את תמונת המוצר ל-Google Lens דרך שיתוף המכשיר; קוראים את השם משם וממלאים ידנית
-  async function onLensSearch() {
-    const blob = pendingPhoto;
-    if (!blob) { setScanStatus('קודם צלמי את המוצר (📷 צילום / העלאה), ואז "זיהוי בתמונה".'); return; }
-    try {
-      const file = new File([blob], 'product.jpg', { type: blob.type || 'image/jpeg' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'זיהוי מוצר', text: 'איזה מוצר זה?' });
-        setScanStatus('בחרי "Lens" / "Google" בחלון השיתוף → קראי את שם המוצר → והקלידי אותו בשדה "שם".');
-        return;
-      }
-    } catch (_) { /* נפילה לחלופה */ }
-    window.open('https://lens.google.com/', '_blank', 'noopener');
-    setScanStatus('נפתח Google Lens — העלי את התמונה, קראי את השם, והקלידי אותו בשדה "שם".');
   }
 
   // ============ רשימת ערים + חיפוש בהקלדה + שמירת עיר חדשה ============
