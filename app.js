@@ -143,7 +143,8 @@
     $('#form').addEventListener('submit', onSave);
     document.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeEditor));
     $('#photoInput').addEventListener('change', onPhotoPicked);
-    $('#ocrInput').addEventListener('change', onOcrPicked);
+    $('#barcodeInput').addEventListener('change', onBarcodePicked);
+    $('#lensBtn').addEventListener('click', onLensSearch);
     $('#removePhoto').addEventListener('click', onRemovePhoto);
     $('#deleteBtn').addEventListener('click', onDelete);
     $('#f_category').addEventListener('change', updateDomainFields);
@@ -365,8 +366,7 @@
     pendingPhotoRemoved = false;
     const form = $('#form');
     form.reset();
-    $('#ocrResult').classList.add('hidden');
-    $('#ocrText').textContent = '';
+    setScanStatus('');
 
     const p = id ? products.find((x) => x.id === id) : null;
     $('#sheetTitle').textContent = p ? 'עריכת מוצר' : 'מוצר חדש';
@@ -498,148 +498,96 @@
     });
   }
 
-  // ============ OCR — סריקת מדבקה (Tesseract.js, צד לקוח) ============
-  let tesseractLoading = null;
-  function loadTesseract() {
-    if (window.Tesseract) return Promise.resolve();
-    if (tesseractLoading) return tesseractLoading;
-    tesseractLoading = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-      s.onload = resolve;
-      s.onerror = () => { tesseractLoading = null; reject(new Error('נכשלה טעינת מנוע OCR')); };
-      document.head.appendChild(s);
-    });
-    return tesseractLoading;
+  // ============ סריקת ברקוד + זיהוי בתמונה (Google Lens) ============
+  function setScanStatus(msg, busy) {
+    const el = $('#scanStatus');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.toggle('hidden', !msg);
+    el.classList.toggle('scan-status--busy', !!busy);
   }
 
-  function setOcrStatus(msg) { $('#ocrStatus').textContent = msg || ''; }
-
-  async function onOcrPicked(e) {
+  async function onBarcodePicked(e) {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    // גם נשמור את התמונה כתמונת המוצר
+    // שומרים גם כתמונת המוצר
     try {
       const blob = await compressImage(file, 1400, 0.85);
       pendingPhoto = blob; pendingPhotoRemoved = false; setPhotoPreview(blob);
     } catch (_) { /* לא קריטי */ }
-    runOCR(file);
-  }
 
-  // עיבוד מקדים לתמונה לפני OCR — משפר דיוק דרמטית: הגדלה, גווני אפור ומתיחת ניגודיות.
-  // (Tesseract עצמו עושה בינאריזציה פנימית, לכן די בקלט אפור וברור.)
-  function fileToImage(file) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-      img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-      img.src = url;
-    });
-  }
-  async function preprocessForOCR(file) {
-    try {
-      const img = await fileToImage(file);
-      const srcW = img.naturalWidth || img.width;
-      const srcH = img.naturalHeight || img.height;
-      if (!srcW || !srcH) return file;
-      // הגדלה לרוחב יעד (עוזר לטקסט קטן), עם תקרה כדי לא להעמיס
-      const targetW = Math.min(2200, Math.max(1200, srcW));
-      const ratio = targetW / srcW;
-      const w = Math.round(srcW * ratio);
-      const h = Math.round(srcH * ratio);
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(img, 0, 0, w, h);
-      const imgData = ctx.getImageData(0, 0, w, h);
-      const d = imgData.data;
-      // גווני אפור + מציאת טווח למתיחת ניגודיות
-      let min = 255, max = 0;
-      const gray = new Float32Array(d.length / 4);
-      for (let i = 0, j = 0; i < d.length; i += 4, j++) {
-        const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-        gray[j] = g; if (g < min) min = g; if (g > max) max = g;
-      }
-      const range = Math.max(1, max - min);
-      for (let i = 0, j = 0; i < d.length; i += 4, j++) {
-        let v = (gray[j] - min) / range * 255;          // מתיחה לטווח מלא
-        v = (v - 128) * 1.25 + 128;                      // חיזוק ניגודיות מתון
-        v = v < 0 ? 0 : (v > 255 ? 255 : v);
-        d[i] = d[i + 1] = d[i + 2] = v;
-      }
-      ctx.putImageData(imgData, 0, 0);
-      return canvas;
-    } catch (e) {
-      return file; // אם משהו נכשל — נסרוק את המקור
+    if (!('BarcodeDetector' in window)) {
+      setScanStatus('הדפדפן לא תומך בסריקת ברקוד — נסי ב-Chrome, או השתמשי ב"זיהוי בתמונה".');
+      return;
     }
-  }
-
-  async function runOCR(file) {
-    $('#ocrResult').classList.remove('hidden');
-    $('#ocrText').textContent = '';
-    setOcrStatus('טוען מנוע OCR (בפעם הראשונה עשוי לקחת רגע)...');
-    let worker = null;
+    setScanStatus('קורא ברקוד…', true);
     try {
-      await loadTesseract();
-      setOcrStatus('מכין את התמונה...');
-      const image = await preprocessForOCR(file);
-      setOcrStatus('סורק את המדבקה... 0%');
-      worker = await window.Tesseract.createWorker('heb+eng', 1, {
-        logger: (m) => {
-          if (m.status === 'recognizing text') setOcrStatus(`סורק את המדבקה... ${Math.round((m.progress || 0) * 100)}%`);
-        },
+      const bitmap = await createImageBitmap(file);
+      const detector = new window.BarcodeDetector({
+        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'],
       });
-      // PSM 6 = בלוק טקסט אחיד (מתאים למדבקות); שמירת רווחים בין מילים
-      await worker.setParameters({
-        tessedit_pageseg_mode: '6',
-        preserve_interword_spaces: '1',
-      });
-      const { data } = await worker.recognize(image);
-      fillOcrResult(((data && data.text) || '').trim());
+      const codes = await detector.detect(bitmap);
+      if (!codes || !codes.length) {
+        setScanStatus('לא זוהה ברקוד. צלמי מקרוב, ישר ובאור טוב — או נסי "זיהוי בתמונה".');
+        return;
+      }
+      const barcode = (codes[0].rawValue || '').trim();
+      if (!barcode) { setScanStatus('לא הצלחתי לקרוא את הברקוד. נסי שוב.'); return; }
+      if (!$('#f_supplier').value.trim()) $('#f_supplier').value = barcode;   // מק״ט = הברקוד
+      setScanStatus('מחפש מוצר לפי ברקוד ' + barcode + '…', true);
+      const info = await lookupBarcode(barcode);
+      const filled = [];
+      if (info && info.name && !$('#f_name').value.trim()) { $('#f_name').value = info.name; filled.push('שם'); }
+      if (info && info.brand && !$('#f_brand').value.trim()) { $('#f_brand').value = info.brand; filled.push('מותג'); }
+      if (filled.length) {
+        setScanStatus('✓ מולא לפי הברקוד: ' + filled.join(', ') + '. השלימי דגם / צבע / גוון אם צריך.');
+      } else {
+        setScanStatus('הברקוד נשמר כמק״ט (' + barcode + '), אך המוצר לא נמצא במאגר. מלאי שם ידנית, או נסי "זיהוי בתמונה".');
+      }
     } catch (err) {
       console.error(err);
-      setOcrStatus('לא הצלחתי לסרוק (בדקי חיבור אינטרנט, או נסי תמונה ברורה יותר). אפשר גם למלא ידנית.');
-    } finally {
-      if (worker && worker.terminate) { try { await worker.terminate(); } catch (_) {} }
+      setScanStatus('שגיאה בקריאת הברקוד. נסי שוב, או מלאי ידנית.');
     }
   }
 
-  // ממלא אוטומטית את כל השדות שאפשר לזהות. ממלא רק שדות ריקים (לא דורס עריכות).
-  function fillOcrResult(text) {
-    const raw = text || '';
-    $('#ocrText').textContent = raw;
-    if (!raw) { setOcrStatus('לא זוהה טקסט. נסי תמונה ברורה, מוארת וממוקדת על הכיתוב.'); return; }
+  // חיפוש שם+מותג לפי ברקוד במאגרים ציבוריים חינמיים (Open Beauty/Food/Products Facts)
+  async function lookupBarcode(barcode) {
+    const bases = [
+      'https://world.openbeautyfacts.org',
+      'https://world.openfoodfacts.org',
+      'https://world.openproductsfacts.org',
+    ];
+    for (const base of bases) {
+      try {
+        const res = await fetch(`${base}/api/v2/product/${encodeURIComponent(barcode)}.json?fields=product_name,product_name_he,brands`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (data && data.status === 1 && data.product) {
+          const p = data.product;
+          const name = (p.product_name_he || p.product_name || '').trim();
+          const brand = (p.brands || '').split(',')[0].trim();
+          if (name || brand) return { name, brand };
+        }
+      } catch (_) { /* ננסה את המאגר הבא */ }
+    }
+    return null;
+  }
 
-    const filled = [];
-    const setIf = (sel, val, label) => {
-      const el = $(sel);
-      if (val && !el.value.trim()) { el.value = val; filled.push(label); }
-    };
-
-    // מותג — התאמה לרשימת המותגים הידועים
-    const upper = raw.toUpperCase();
-    const brand = KNOWN_BRANDS.find((b) => upper.includes(b.toUpperCase()));
-    if (brand) setIf('#f_brand', brand, 'מותג');
-
-    // קודים שמכילים ספרה
-    const allCodes = [...new Set(raw.match(/[A-Za-z0-9][A-Za-z0-9\-\/]{2,}/g) || [])]
-      .filter((c) => /\d/.test(c) && c.length <= 20);
-    const shadeLike = allCodes.filter((c) => /^[A-Za-z]{0,3}\d{1,4}$/.test(c)); // NC20 / 120 / W7
-    const longCodes = allCodes.filter((c) => !shadeLike.includes(c)).sort((a, b) => b.length - a.length);
-    if (shadeLike[0]) setIf('#f_shadeNumber', shadeLike[0], 'מספר גוון');
-    const pool = longCodes.concat(shadeLike.slice(1));
-    if (pool[0]) setIf('#f_supplier', pool[0], 'מק״ט');
-    if (pool[1]) setIf('#f_model', pool[1], 'דגם');
-
-    // שם — השורה המשמעותית הראשונה שאינה המותג
-    const lines = raw.split('\n').map((l) => l.trim()).filter((l) => l.length >= 2 && /[A-Za-zא-ת]/.test(l));
-    const nameLine = lines.find((l) => !brand || l.toUpperCase() !== brand.toUpperCase());
-    if (nameLine) setIf('#f_name', nameLine.slice(0, 60), 'שם');
-
-    if (filled.length) setOcrStatus('מולא אוטומטית: ' + filled.join(', ') + ' — בדקי ותקני אם צריך ✓');
-    else setOcrStatus('זיהיתי טקסט אך לא הצלחתי לשייך שדות. פתחי את "הטקסט המלא" למטה.');
+  // מוסר את תמונת המוצר ל-Google Lens דרך שיתוף המכשיר; קוראים את השם משם וממלאים ידנית
+  async function onLensSearch() {
+    const blob = pendingPhoto;
+    if (!blob) { setScanStatus('קודם צלמי את המוצר (📷 צילום / העלאה), ואז "זיהוי בתמונה".'); return; }
+    try {
+      const file = new File([blob], 'product.jpg', { type: blob.type || 'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'זיהוי מוצר', text: 'איזה מוצר זה?' });
+        setScanStatus('בחרי "Lens" / "Google" בחלון השיתוף → קראי את שם המוצר → והקלידי אותו בשדה "שם".');
+        return;
+      }
+    } catch (_) { /* נפילה לחלופה */ }
+    window.open('https://lens.google.com/', '_blank', 'noopener');
+    setScanStatus('נפתח Google Lens — העלי את התמונה, קראי את השם, והקלידי אותו בשדה "שם".');
   }
 
   // ============ רשימת ערים + חיפוש בהקלדה + שמירת עיר חדשה ============

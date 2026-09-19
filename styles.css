@@ -481,3 +481,10 @@ a.wide-btn { text-decoration: none; display: block; }
   background: #fff; color: var(--ink); outline: none; margin-top: 8px; font-size: 15px;
 }
 .store-link-input:focus { border-color: var(--rose); box-shadow: 0 0 0 3px var(--rose-tint); }
+
+/* סטטוס סריקה (ברקוד / Lens) */
+.scan-status {
+  margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px;
+  background: var(--rose-tint); color: var(--rose-deep); font-size: .9rem; line-height: 1.4;
+}
+.scan-status--busy::after { content: ' ⏳'; }

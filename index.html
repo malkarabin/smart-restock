@@ -75,19 +75,14 @@
               <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
             </label>
             <label class="chip-btn chip-btn--accent">
-              🔎 סרוק מדבקה
-              <input id="ocrInput" type="file" accept="image/*" capture="environment" hidden />
+              🏷️ סרוק ברקוד
+              <input id="barcodeInput" type="file" accept="image/*" capture="environment" hidden />
             </label>
+            <button type="button" id="lensBtn" class="chip-btn">🔍 זיהוי בתמונה</button>
             <button type="button" id="removePhoto" class="chip-btn chip-btn--ghost hidden">הסרת תמונה</button>
           </div>
         </div>
-        <div id="ocrResult" class="ocr-result hidden">
-          <div id="ocrStatus" class="ocr-status"></div>
-          <details class="ocr-raw">
-            <summary>הטקסט המלא שזוהה</summary>
-            <div id="ocrText" class="ocr-text-view"></div>
-          </details>
-        </div>
+        <div id="scanStatus" class="scan-status hidden"></div>
 
         <label class="field">
           <span class="field__label">שם המוצר <em>*</em></span>
