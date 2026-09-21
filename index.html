@@ -253,10 +253,16 @@
       <div class="sheet__body">
         <p class="onboard-note" id="lockIntro">קוד אישי (4–6 ספרות ואותיות) שיישאל בפתיחת האפליקציה — כדי שרק את תראי את הפריטים. לא חובה; אם לא תגדירי, האפליקציה לא תבקש קוד לעולם.</p>
         <label class="field"><span class="field__label">קוד</span>
-          <input id="lockCode" type="password" inputmode="text" autocomplete="off" maxlength="6" minlength="4" placeholder="4–6 ספרות/אותיות" />
+          <div class="pw-wrap">
+            <input id="lockCode" type="password" inputmode="text" autocomplete="off" maxlength="6" minlength="4" placeholder="4–6 ספרות/אותיות" />
+            <button type="button" class="pw-eye" data-eye="lockCode" aria-label="הצג/הסתר קוד">👁️</button>
+          </div>
         </label>
         <label class="field" id="lockConfirmWrap"><span class="field__label">אישור קוד</span>
-          <input id="lockConfirm" type="password" inputmode="text" autocomplete="off" maxlength="6" minlength="4" placeholder="הקלידי שוב" />
+          <div class="pw-wrap">
+            <input id="lockConfirm" type="password" inputmode="text" autocomplete="off" maxlength="6" minlength="4" placeholder="הקלידי שוב" />
+            <button type="button" class="pw-eye" data-eye="lockConfirm" aria-label="הצג/הסתר קוד">👁️</button>
+          </div>
         </label>
         <p id="lockErr" class="lock-err hidden"></p>
         <p class="backup-note">⚠️ אין שחזור קוד בלי חשבון ענן — אם תשכחי, הדרך היחידה תהיה איפוס האפליקציה. כדאי לייצא גיבוי.</p>
@@ -274,7 +280,10 @@
       <div class="lock-emoji">🔒</div>
       <h2>ריסטוק חכם</h2>
       <p>הזיני את הקוד האישי</p>
-      <input id="unlockCode" type="password" inputmode="text" autocomplete="off" maxlength="6" placeholder="קוד" />
+      <div class="pw-wrap">
+        <input id="unlockCode" type="password" inputmode="text" autocomplete="off" maxlength="6" placeholder="קוד" />
+        <button type="button" class="pw-eye" data-eye="unlockCode" aria-label="הצג/הסתר קוד">👁️</button>
+      </div>
       <p id="unlockErr" class="lock-err hidden"></p>
       <button type="button" id="unlockBtn" class="save-btn">כניסה</button>
       <button type="button" id="forgotBtn" class="text-btn">שכחתי את הקוד</button>

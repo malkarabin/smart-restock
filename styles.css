@@ -530,3 +530,12 @@ a.wide-btn { text-decoration: none; display: block; }
 }
 .lock-card .save-btn { width: 100%; }
 .lock-card .text-btn { margin-top: 10px; display: block; width: 100%; color: var(--muted); }
+
+/* כפתור עין להצגת/הסתרת קוד */
+.pw-wrap { position: relative; }
+.pw-wrap input { padding-inline-end: 44px; }
+.pw-eye {
+  position: absolute; inset-inline-end: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; font-size: 1.2rem; padding: 6px; line-height: 1; cursor: pointer;
+}
+.lock-card .pw-wrap input { padding-inline: 44px; }

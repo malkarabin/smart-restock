@@ -175,6 +175,13 @@
     if ($('#unlockBtn')) $('#unlockBtn').addEventListener('click', onUnlock);
     if ($('#unlockCode')) $('#unlockCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); onUnlock(); } });
     if ($('#forgotBtn')) $('#forgotBtn').addEventListener('click', onForgot);
+    document.querySelectorAll('.pw-eye').forEach((btn) => btn.addEventListener('click', () => {
+      const inp = document.getElementById(btn.dataset.eye);
+      if (!inp) return;
+      const reveal = inp.type === 'password';
+      inp.type = reveal ? 'text' : 'password';
+      btn.textContent = reveal ? '🙈' : '👁️';
+    }));
     const onbDone = $('#onboardDone');
     if (onbDone) onbDone.addEventListener('click', saveOnboard);
     document.querySelectorAll('[data-close-onboard]').forEach((el) => el.addEventListener('click', saveOnboard));
