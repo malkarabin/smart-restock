@@ -1,5 +1,5 @@
 /* sw.js — Service Worker לעבודה אופליין */
-const CACHE = 'smart-restock-v3';
+const CACHE = 'smart-restock-v4';
 const ASSETS = [
   './',
   './index.html',

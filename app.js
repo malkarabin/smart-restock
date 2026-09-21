@@ -128,6 +128,7 @@
     registerSW();
     await refresh();
     if (loadUserDomains().length === 0) openOnboard();   // ריצה ראשונה — בחירת תחומים
+    if (hasLock()) showLockScreen();                     // מנעול פרטיות — אם הוגדר
   }
 
   function bindEvents() {
@@ -164,6 +165,16 @@
     // תחומי עניין (בורר) — פתיחה מהתפריט + כפתור "המשך"
     const chooseBtn = $('#chooseDomainsBtn');
     if (chooseBtn) chooseBtn.addEventListener('click', () => { closeBackup(); openOnboard(); });
+
+    // מנעול פרטיות
+    if ($('#lockBtn')) $('#lockBtn').addEventListener('click', openLockSheet);
+    if ($('#onboardLockBtn')) $('#onboardLockBtn').addEventListener('click', openLockSheet);
+    document.querySelectorAll('[data-close-lock]').forEach((el) => el.addEventListener('click', closeLockSheet));
+    if ($('#lockSave')) $('#lockSave').addEventListener('click', onLockSave);
+    if ($('#lockRemove')) $('#lockRemove').addEventListener('click', onLockRemove);
+    if ($('#unlockBtn')) $('#unlockBtn').addEventListener('click', onUnlock);
+    if ($('#unlockCode')) $('#unlockCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); onUnlock(); } });
+    if ($('#forgotBtn')) $('#forgotBtn').addEventListener('click', onForgot);
     const onbDone = $('#onboardDone');
     if (onbDone) onbDone.addEventListener('click', saveOnboard);
     document.querySelectorAll('[data-close-onboard]').forEach((el) => el.addEventListener('click', saveOnboard));
@@ -907,6 +918,90 @@
     buildCategorySelect();
     buildFilters();
     render();
+  }
+
+  // ============ מנעול פרטיות (קוד מקומי, אופציונלי) ============
+  const LOCK_KEY = 'sr_privacy_lock';
+  function getLock() {
+    try { return JSON.parse(localStorage.getItem(LOCK_KEY)); } catch (e) { return null; }
+  }
+  function hasLock() { const l = getLock(); return !!(l && l.hash && l.salt); }
+  async function sha256(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  function randSalt() {
+    const a = new Uint8Array(16); crypto.getRandomValues(a);
+    return [...a].map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function setLockCode(code) {
+    const salt = randSalt();
+    const hash = await sha256(salt + code);
+    try { localStorage.setItem(LOCK_KEY, JSON.stringify({ salt, hash })); } catch (e) {}
+  }
+  async function checkCode(code) {
+    const l = getLock(); if (!l) return false;
+    return (await sha256(l.salt + code)) === l.hash;
+  }
+  function removeLock() { try { localStorage.removeItem(LOCK_KEY); } catch (e) {} }
+  const validCode = (c) => /^[A-Za-z0-9]{4,6}$/.test(c || '');
+
+  function openLockSheet() {
+    closeBackup(); hide('#onboard');
+    const has = hasLock();
+    $('#lockCode').value = ''; $('#lockConfirm').value = '';
+    $('#lockErr').classList.add('hidden');
+    $('#lockConfirmWrap').classList.toggle('hidden', false);
+    $('#lockRemove').classList.toggle('hidden', !has);
+    $('#lockIntro').textContent = has
+      ? 'יש קוד פעיל. אפשר להחליף אותו (הקלידי קוד חדש ואישור) או להסיר אותו.'
+      : 'קוד אישי (4–6 ספרות ואותיות) שיישאל בפתיחת האפליקציה — כדי שרק את תראי את הפריטים. לא חובה; אם לא תגדירי, האפליקציה לא תבקש קוד לעולם.';
+    show('#lockSheet');
+  }
+  function closeLockSheet() { hide('#lockSheet'); }
+  async function onLockSave() {
+    const code = $('#lockCode').value.trim();
+    const confirm = $('#lockConfirm').value.trim();
+    const err = $('#lockErr');
+    if (!validCode(code)) { err.textContent = 'קוד לא תקין — 4 עד 6 ספרות ואותיות באנגלית בלבד.'; err.classList.remove('hidden'); return; }
+    if (code !== confirm) { err.textContent = 'הקוד והאישור לא זהים.'; err.classList.remove('hidden'); return; }
+    await setLockCode(code);
+    closeLockSheet();
+    toast('קוד הפרטיות נשמר 🔒');
+  }
+  function onLockRemove() {
+    removeLock();
+    closeLockSheet();
+    toast('קוד הפרטיות הוסר');
+  }
+
+  function showLockScreen() {
+    const el = $('#lockScreen');
+    if (!el) return;
+    $('#unlockCode').value = '';
+    $('#unlockErr').classList.add('hidden');
+    el.classList.remove('hidden');
+    document.body.classList.add('sheet-open');
+    setTimeout(() => $('#unlockCode').focus(), 100);
+  }
+  function hideLockScreen() {
+    $('#lockScreen').classList.add('hidden');
+    document.body.classList.remove('sheet-open');
+  }
+  async function onUnlock() {
+    const code = $('#unlockCode').value.trim();
+    if (await checkCode(code)) { hideLockScreen(); return; }
+    const err = $('#unlockErr');
+    err.textContent = 'קוד שגוי. נסי שוב.';
+    err.classList.remove('hidden');
+    $('#unlockCode').value = '';
+    $('#unlockCode').focus();
+  }
+  async function onForgot() {
+    if (!confirm('אין שחזור קוד ללא חשבון ענן. איפוס יסיר את הקוד — אבל ימחק את כל הפריטים במכשיר. להמשיך?')) return;
+    try { const all = await Store.getAll(); for (const p of all) await Store.remove(p.id); } catch (e) {}
+    try { localStorage.clear(); } catch (e) {}
+    location.reload();
   }
 
   function buildDatalists() {

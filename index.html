@@ -172,6 +172,7 @@
       </div>
       <div class="sheet__body">
         <button type="button" id="chooseDomainsBtn" class="wide-btn wide-btn--ghost">🧭 תחומי העניין שלי</button>
+        <button type="button" id="lockBtn" class="wide-btn wide-btn--ghost">🔒 קוד פרטיות</button>
         <p class="backup-note">הנתונים נשמרים רק במכשיר הזה. כדאי לייצא גיבוי מדי פעם — כך לא תאבדי כלום גם אם תחליפי טלפון.</p>
         <button type="button" id="exportBtn" class="wide-btn">📤 ייצוא גיבוי (קובץ)</button>
         <label class="wide-btn wide-btn--ghost">
@@ -231,10 +232,52 @@
       <div class="sheet__body">
         <p class="onboard-note">בחרי תחומים שתרצי לשמור בהם מוצרים. לפי הבחירה נתאים לך את החיפוש של החנויות. אפשר לשנות בכל עת מהתפריט.</p>
         <div id="onboardChips" class="domain-chips" role="group" aria-label="תחומי עניין"></div>
+        <button type="button" id="onboardLockBtn" class="wide-btn wide-btn--ghost" style="margin-top:18px">🔒 קוד פרטיות (לא חובה)</button>
       </div>
       <div class="sheet__footer">
         <button type="button" id="onboardDone" class="save-btn">✓ המשך</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Privacy-lock setup -->
+  <div id="lockSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
+    <div class="sheet__backdrop" data-close-lock></div>
+    <div class="sheet__panel sheet__panel--short">
+      <div class="sheet__grip"></div>
+      <div class="sheet__head">
+        <button type="button" class="text-btn text-btn--back" data-close-lock>→ חזרה</button>
+        <h2 id="lockTitle">🔒 קוד פרטיות</h2>
+        <span class="app-header__spacer"></span>
+      </div>
+      <div class="sheet__body">
+        <p class="onboard-note" id="lockIntro">קוד אישי (4–6 ספרות ואותיות) שיישאל בפתיחת האפליקציה — כדי שרק את תראי את הפריטים. לא חובה; אם לא תגדירי, האפליקציה לא תבקש קוד לעולם.</p>
+        <label class="field"><span class="field__label">קוד</span>
+          <input id="lockCode" type="password" inputmode="text" autocomplete="off" maxlength="6" minlength="4" placeholder="4–6 ספרות/אותיות" />
+        </label>
+        <label class="field" id="lockConfirmWrap"><span class="field__label">אישור קוד</span>
+          <input id="lockConfirm" type="password" inputmode="text" autocomplete="off" maxlength="6" minlength="4" placeholder="הקלידי שוב" />
+        </label>
+        <p id="lockErr" class="lock-err hidden"></p>
+        <p class="backup-note">⚠️ אין שחזור קוד בלי חשבון ענן — אם תשכחי, הדרך היחידה תהיה איפוס האפליקציה. כדאי לייצא גיבוי.</p>
+      </div>
+      <div class="sheet__footer" style="display:flex;gap:10px">
+        <button type="button" id="lockSave" class="save-btn" style="flex:1">שמירת קוד</button>
+        <button type="button" id="lockRemove" class="wide-btn wide-btn--ghost hidden" style="flex:1;margin:0">הסרת קוד</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lock screen (shown on open when a code is set) -->
+  <div id="lockScreen" class="lock-screen hidden" role="dialog" aria-modal="true" aria-label="קוד פרטיות">
+    <div class="lock-card">
+      <div class="lock-emoji">🔒</div>
+      <h2>ריסטוק חכם</h2>
+      <p>הזיני את הקוד האישי</p>
+      <input id="unlockCode" type="password" inputmode="text" autocomplete="off" maxlength="6" placeholder="קוד" />
+      <p id="unlockErr" class="lock-err hidden"></p>
+      <button type="button" id="unlockBtn" class="save-btn">כניסה</button>
+      <button type="button" id="forgotBtn" class="text-btn">שכחתי את הקוד</button>
     </div>
   </div>
 
